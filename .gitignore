@@ -1,0 +1,6 @@
+.vscode
+build
+dist
+
+*.sh
+bochs_config
