@@ -1,20 +1,16 @@
 #include "fat.h"
 #include "stdio.h"
+#include "memdefs.h"
 #include "string.h"
 #include "memory.h"
 #include "ctype.h"
-#include <stdlib.h>
+#include <stddef.h>
+#include "minmax.h"
 
 #define SECTOR_SIZE 512
 #define MAX_PATH_SIZE 256
 #define MAX_FILE_HANDLES 10
 #define ROOT_DIRECTORY_HANDLE -1
-#define MEMORY_FAT_SIZE 0x10000
-
-#define min(a, b) ((a) < (b) ? (a) : (b))
-#define max(a, b) ((a) > (b) ? (a) : (b))
-
-#pragma pack(push, 1)
 
 typedef struct
 {
@@ -40,19 +36,16 @@ typedef struct
 	uint32_t VolumeId;		 // serial number, value doesn't matter
 	uint8_t VolumeLabel[11]; // 11 bytes, padded with spaces
 	uint8_t SystemId[8];
-
-} FAT_BootSector;
-
-#pragma pack(pop)
+} __attribute__((packed)) FAT_BootSector;
 
 typedef struct
 {
+	uint8_t Buffer[SECTOR_SIZE];
 	FAT_File Public;
 	bool Opened;
 	uint32_t FirstCluster;
 	uint32_t CurrentCluster;
 	uint32_t CurrentSectorInCluster;
-	uint8_t Buffer[SECTOR_SIZE];
 
 } FAT_FileData;
 
@@ -70,7 +63,6 @@ typedef struct
 
 } FAT_Data;
 
-static FAT_Data g_ActualData;
 static FAT_Data *g_Data;
 static uint8_t *g_Fat = NULL;
 static uint32_t g_DataSectionLba;
@@ -87,7 +79,7 @@ bool FAT_ReadFat(DISK *disk)
 
 bool FAT_Initialize(DISK *disk)
 {
-	g_Data = &g_ActualData;
+	g_Data = (FAT_Data *)MEMORY_FAT_ADDR;
 
 	// read boot sector
 	if (!FAT_ReadBootSector(disk))
@@ -97,8 +89,8 @@ bool FAT_Initialize(DISK *disk)
 	}
 
 	// read FAT
+	g_Fat = (uint8_t *)g_Data + sizeof(FAT_Data);
 	uint32_t fatSize = g_Data->BS.BootSector.BytesPerSector * g_Data->BS.BootSector.SectorsPerFat;
-	g_Fat = (uint8_t *)malloc(fatSize + SECTOR_SIZE);
 	if (sizeof(FAT_Data) + fatSize >= MEMORY_FAT_SIZE)
 	{
 		printf("FAT: FAT table too large!\r\n Current size: %lu\r\n Max size: %u\r\n", sizeof(FAT_Data) + fatSize, MEMORY_FAT_SIZE);
@@ -120,8 +112,8 @@ bool FAT_Initialize(DISK *disk)
 	g_Data->RootDirectory.Public.Position = 0;
 	g_Data->RootDirectory.Public.Size = sizeof(FAT_DirectoryEntry) * g_Data->BS.BootSector.DirEntryCount;
 	g_Data->RootDirectory.Opened = true;
-	g_Data->RootDirectory.FirstCluster =
-		g_Data->RootDirectory.CurrentCluster = 0;
+	g_Data->RootDirectory.FirstCluster = rootDirLba;
+	g_Data->RootDirectory.CurrentCluster = rootDirLba;
 	g_Data->RootDirectory.CurrentSectorInCluster = 0;
 
 	if (!DISK_ReadSectors(disk, rootDirLba, 1, g_Data->RootDirectory.Buffer))
@@ -175,7 +167,10 @@ FAT_File *FAT_OpenEntry(DISK *disk, FAT_DirectoryEntry *entry)
 
 	if (!DISK_ReadSectors(disk, FAT_ClusterToLba(fd->CurrentCluster), 1, fd->Buffer))
 	{
-		printf("FAT: Failed to read file!\r\n");
+		printf("FAT: Failed to read entry! CLUSTER:%u LBA:%u\n", fd->CurrentCluster, FAT_ClusterToLba(fd->CurrentCluster));
+		for (int i = 0; i < 11; i++)
+			printf("%c", entry->Name[i]);
+		printf("\n");
 		return false;
 	}
 
@@ -203,7 +198,7 @@ uint32_t FAT_Read(DISK *disk, FAT_File *file, uint32_t byteCount, void *dataOut)
 	uint8_t *u8DataOut = (uint8_t *)dataOut;
 
 	// don't read past the end of the file
-	if (!fd->Public.IsDirectory)
+	if (!fd->Public.IsDirectory || (fd->Public.IsDirectory && fd->Public.Size != 0))
 		byteCount = min(byteCount, fd->Public.Size - fd->Public.Position);
 
 	while (byteCount > 0)
@@ -216,6 +211,7 @@ uint32_t FAT_Read(DISK *disk, FAT_File *file, uint32_t byteCount, void *dataOut)
 		fd->Public.Position += take;
 		byteCount -= take;
 
+		// printf("leftInBuffer=%lu take=%lu\r\n", leftInBuffer, take);
 		// See if we need to read more data
 		if (leftInBuffer == take)
 		{
@@ -280,11 +276,12 @@ void FAT_Close(FAT_File *file)
 
 bool FAT_FindFile(DISK *disk, FAT_File *file, const char *name, FAT_DirectoryEntry *entryOut)
 {
-	char fatName[11];
+	char fatName[12];
 	FAT_DirectoryEntry entry;
 
 	// convert from name to fat name
 	memset(fatName, ' ', sizeof(fatName));
+	fatName[11] = '\0';
 
 	const char *ext = strchr(name, '.');
 	if (ext == NULL)
@@ -293,7 +290,7 @@ bool FAT_FindFile(DISK *disk, FAT_File *file, const char *name, FAT_DirectoryEnt
 	for (int i = 0; i < 8 && name[i] && name + i < ext; i++)
 		fatName[i] = toupper(name[i]);
 
-	if (ext != NULL)
+	if (ext != name + 11)
 	{
 		for (int i = 0; i < 3 && ext[i + 1]; i++)
 			fatName[i + 8] = toupper(ext[i + 1]);
@@ -350,7 +347,7 @@ FAT_File *FAT_Open(DISK *disk, const char *path)
 			// check if directory
 			if (!isLast && entry.Attributes & FAT_ATTRIBUTE_DIRECTORY == 0)
 			{
-				printf("FAT: %s is not a directory\r\n", name);
+				printf("FAT: %s is not a directory!\r\n", name);
 				return NULL;
 			}
 
@@ -361,7 +358,7 @@ FAT_File *FAT_Open(DISK *disk, const char *path)
 		{
 			FAT_Close(current);
 
-			printf("FAT: %s not found\r\n", name);
+			printf("FAT: %s not found!\r\n", name);
 			return NULL;
 		}
 	}

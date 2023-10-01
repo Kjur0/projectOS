@@ -226,7 +226,7 @@ puts:
 
 .loop:
 	lodsb				; loads next character in al
-	or al, al			; next char == 0
+	or al, al			; next char == null
 	jz .done
 
 	mov ah, 0x0E		; bios interrupt
@@ -297,7 +297,7 @@ disk_read:
 	push dx
 	push di
 
-	push cx
+	push cx								; temporarily save number of sectors to read
 	call lba_to_chs						; compute CHS
 	pop ax								; AL = number of sectors to read
 
@@ -354,8 +354,8 @@ msg_stage2_not_found:	db 'stage2.bin not found!', ENDL, 0
 file_stage2_bin:		db 'STAGE2  BIN', 0
 stage2_cluster:			dw 0
 
-STAGE2_LOAD_SEGMENT		equ 0x2000
-STAGE2_LOAD_OFFSET		equ 0
+STAGE2_LOAD_SEGMENT		equ 0x0
+STAGE2_LOAD_OFFSET		equ 0x500
 
 times 510-($-$$) db 0
 dw 0AA55h
