@@ -7,3 +7,5 @@ toolchain
 *.err
 *_gen.*
 *.tmp.*
+
+!build_scripts/*
