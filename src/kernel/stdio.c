@@ -30,10 +30,10 @@ uint8_t getcolor(int x, int y) {
 void setcursor(int x, int y) {
 	int pos = y * SCREEN_WIDTH + x;
 
-	x86_outb(0x3D4, 0x0F);
-	x86_outb(0x3D5, (uint8_t)(pos & 0xFF));
-	x86_outb(0x3D4, 0x0E);
-	x86_outb(0x3D5, (uint8_t)((pos >> 8) & 0xFF));
+	i686_outb(0x3D4, 0x0F);
+	i686_outb(0x3D5, (uint8_t)(pos & 0xFF));
+	i686_outb(0x3D4, 0x0E);
+	i686_outb(0x3D5, (uint8_t)((pos >> 8) & 0xFF));
 }
 
 void clrscr() {
@@ -129,17 +129,17 @@ void printf_signed(long long number, int radix) {
 		printf_unsigned(number, radix);
 }
 
-#define PRINTF_STATE_NORMAL 0
-#define PRINTF_STATE_LENGTH 1
-#define PRINTF_STATE_LENGTH_SHORT 2
-#define PRINTF_STATE_LENGTH_LONG 3
-#define PRINTF_STATE_SPEC 4
+#define PRINTF_STATE_NORMAL			0
+#define PRINTF_STATE_LENGTH			1
+#define PRINTF_STATE_LENGTH_SHORT	2
+#define PRINTF_STATE_LENGTH_LONG	3
+#define PRINTF_STATE_SPEC			4
 
-#define PRINTF_LENGTH_DEFAULT 0
-#define PRINTF_LENGTH_SHORT_SHORT 1
-#define PRINTF_LENGTH_SHORT 2
-#define PRINTF_LENGTH_LONG 3
-#define PRINTF_LENGTH_LONG_LONG 4
+#define PRINTF_LENGTH_DEFAULT		0
+#define PRINTF_LENGTH_SHORT_SHORT	1
+#define PRINTF_LENGTH_SHORT			2
+#define PRINTF_LENGTH_LONG			3
+#define PRINTF_LENGTH_LONG_LONG		4
 
 void printf(const char* fmt, ...) {
 	va_list args;

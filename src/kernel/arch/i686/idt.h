@@ -16,6 +16,7 @@ typedef enum {
 	IDT_FLAG_PRESENT = 0x80,
 
 } IDT_FLAGS;
+
 void i686_IDT_Initialize();
 void i686_IDT_DisableGate(int interrupt);
 void i686_IDT_EnableGate(int interrupt);

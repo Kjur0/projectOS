@@ -4,8 +4,6 @@ dist
 toolchain
 
 *.sh
-bochs_config
 *.err
-tmp.*
-
-stage2_old
+*_gen.*
+*.tmp.*
