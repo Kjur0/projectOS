@@ -2,13 +2,11 @@
 #include <stdint.h>
 #include <stddef.h>
 
-const char *strchr(const char *str, char chr)
-{
+const char* strchr(const char* str, char chr) {
 	if (str == NULL)
 		return NULL;
 
-	while (*str)
-	{
+	while (*str) {
 		if (*str == chr)
 			return str;
 
@@ -18,21 +16,18 @@ const char *strchr(const char *str, char chr)
 	return NULL;
 }
 
-char *strcpy(char *dst, const char *src)
-{
-	char *origDst = dst;
+char* strcpy(char* dst, const char* src) {
+	char* origDst = dst;
 
 	if (dst == NULL)
 		return NULL;
 
-	if (src == NULL)
-	{
+	if (src == NULL) {
 		*dst = '\0';
 		return dst;
 	}
 
-	while (*src)
-	{
+	while (*src) {
 		*dst = *src;
 		++src;
 		++dst;
@@ -42,11 +37,9 @@ char *strcpy(char *dst, const char *src)
 	return origDst;
 }
 
-unsigned strlen(const char *str)
-{
+unsigned strlen(const char* str) {
 	unsigned len = 0;
-	while (*str)
-	{
+	while (*str) {
 		++len;
 		++str;
 	}
