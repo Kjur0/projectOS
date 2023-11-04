@@ -1,7 +1,9 @@
 org 0x7C00
 bits 16
 
+
 %define ENDL 0x0D, 0x0A
+
 
 ;
 ; FAT12 header
@@ -64,10 +66,12 @@ start:
 	and cl, 0x3F						; remove top 2 bits
 	xor ch, ch
 	mov [bdb_sectors_per_track], cx		; sector count
+
 	inc dh
 	mov [bdb_heads], dh					; head count
 
 	; compute LBA of root directory = reserved + fats * sectors_per_fat
+	; note: this section can be hardcoded
 	mov ax, [bdb_sectors_per_fat]
 	mov bl, [bdb_fat_count]
 	xor bh, bh
@@ -214,6 +218,7 @@ wait_key_and_reboot:
 	cli							; disable interrupts, this way CPU can't get out of "halt" state
 	hlt
 
+
 ;
 ; Prints a string to the screen
 ; Params:
@@ -297,7 +302,7 @@ disk_read:
 	push dx
 	push di
 
-	push cx								; temporarily save number of sectors to read
+	push cx								; temporarily save CL (number of sectors to read)
 	call lba_to_chs						; compute CHS
 	pop ax								; AL = number of sectors to read
 
@@ -305,7 +310,7 @@ disk_read:
 	mov di, 3							; retry count
 
 .retry:
-	pusha								; save all registers, don't know what bios modifies
+	pusha								; save all registers,it's unknown what bios modifies
 	stc									; set carry flag, some BIOS'es don't set it
 	int 13h								; carry flag cleared = success
 	jnc .done							; jump if carry not set
@@ -351,7 +356,7 @@ disk_reset:
 msg_loading:			db 'Loading...', ENDL, 0
 msg_read_failed:		db 'Read failed!', ENDL, 0
 msg_stage2_not_found:	db 'stage2.bin not found!', ENDL, 0
-file_stage2_bin:		db 'STAGE2  BIN', 0
+file_stage2_bin:		db 'STAGE2  BIN'
 stage2_cluster:			dw 0
 
 STAGE2_LOAD_SEGMENT		equ 0x0

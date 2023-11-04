@@ -10,7 +10,7 @@ i686_IDT_Load:
 
 	; load idt
 	mov eax, [ebp + 8]
-	lgdt [eax]
+	lidt [eax]
 
 	; restore old call frame
 	mov esp, ebp

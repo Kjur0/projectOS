@@ -7,10 +7,10 @@
 #include <stddef.h>
 #include "minmax.h"
 
-#define SECTOR_SIZE 512
-#define MAX_PATH_SIZE 256
-#define MAX_FILE_HANDLES 10
-#define ROOT_DIRECTORY_HANDLE -1
+#define SECTOR_SIZE				512
+#define MAX_PATH_SIZE			256
+#define MAX_FILE_HANDLES		10
+#define ROOT_DIRECTORY_HANDLE	-1
 
 typedef struct {
 	uint8_t BootJumpInstruction[3];
@@ -37,6 +37,7 @@ typedef struct {
 	uint8_t SystemId[8];
 } __attribute__((packed)) FAT_BootSector;
 
+
 typedef struct {
 	uint8_t Buffer[SECTOR_SIZE];
 	FAT_File Public;
@@ -62,6 +63,7 @@ typedef struct {
 static FAT_Data* g_Data;
 static uint8_t* g_Fat = NULL;
 static uint32_t g_DataSectionLba;
+
 
 bool FAT_ReadBootSector(DISK* disk) {
 	return DISK_ReadSectors(disk, 0, 1, g_Data->BS.BootSectorBytes);

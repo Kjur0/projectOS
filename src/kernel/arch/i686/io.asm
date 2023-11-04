@@ -22,8 +22,8 @@ i686_Panic:
 
 global crash_me
 crash_me:
-	; div by 0
 	; mov ecx, 0x1337
+	; div by 0
 	; mov eax, 0
 	; div eax
 	; int 0x80

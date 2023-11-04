@@ -6,6 +6,6 @@ toolchain
 *.sh
 *.err
 *_gen.*
-*.tmp.*
+*tmp.*
 
 !build_scripts/*

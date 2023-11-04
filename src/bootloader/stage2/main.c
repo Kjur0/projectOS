@@ -40,6 +40,5 @@ void __attribute__((cdecl)) start(uint16_t bootDrive) {
 	kernelStart();
 
 end:
-	for (;;)
-		;
+	for (;;);
 }
