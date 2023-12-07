@@ -3,6 +3,9 @@ build
 dist
 toolchain
 
+run
+debug
+
 *.sh
 *.err
 *_gen.*

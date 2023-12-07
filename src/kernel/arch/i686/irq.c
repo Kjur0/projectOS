@@ -22,7 +22,7 @@ void i686_IRQ_Handler(Registers* regs) {
 	}
 
 	// send EOI
-	i8259_SendEndOfInterrupt(irq);
+	g_Driver->SendEndOfInterrupt(irq);
 }
 
 void i686_IRQ_Initialize() {
@@ -48,7 +48,7 @@ void i686_IRQ_Initialize() {
 	for (int i = 0; i < 16; i++)
 		i686_ISR_RegisterHandler(PIC_REMAP_OFFSET + i, i686_IRQ_Handler);
 
-	// enable interrupts]
+	// enable interrupts
 	i686_EnableInterrupts();
 
 	// g_Driver->Unmask(0);
