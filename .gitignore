@@ -3,12 +3,8 @@ build
 dist
 toolchain
 
-run*
-debug*
-*.gdb
-
+__pycache__
+.sconsign.dblite
 *.err
 *_gen.*
 *tmp.*
-
-!build_scripts/*
