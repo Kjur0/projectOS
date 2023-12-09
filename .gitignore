@@ -3,10 +3,10 @@ build
 dist
 toolchain
 
-run
-debug
+run*
+debug*
+*.gdb
 
-*.sh
 *.err
 *_gen.*
 *tmp.*
