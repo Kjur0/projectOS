@@ -1,4 +1,3 @@
-org 0x7C00
 bits 16
 
 
@@ -8,311 +7,321 @@ bits 16
 ;
 ; FAT12 header
 ;
-jmp short start
-nop
+section .fsjump
 
-bdb_oem:					db 'MSWIN4.1'			; 8 bytes
-bdb_bytes_per_sector:		dw 512
-bdb_sectors_per_cluster:	db 1
-bdb_reserved_sectors:		dw 1
-bdb_fat_count:				db 2
-bdb_dir_entries_count:		dw 0E0h
-bdb_total_sectors:			dw 2880					; 2880 * 512 = 1.44MB
-bdb_media_descriptor_type:	db 0F0h					; F0 = 3.5" floppy disk
-bdb_sectors_per_fat:		dw 9
-bdb_sectors_per_track:		dw 18
-bdb_heads:					dw 2
-bdb_hidden_sectors:			dd 0
-bdb_large_sector_count:		dd 0
-; extended boot record
-ebr_drive_number:			db 0					; 0x00 floppy, 0x80 hdd, kinda useless
-							db 0					; reserved
-ebr_signature:				db 29h
-ebr_volume_id:				db 69h, 69h, 69h, 69h	; serial number, value doesn't matter
-ebr_volume_label:			db 'projectOS  '		; 11 bytes, padded with spaces
-ebr_system_id:				db 'FAT12   '			; 8 bytes
+	jmp short start
+	nop
 
-times 90-($-$$) db 0
+section .fsheaders
 
-start:
-	; setup data segments
-	mov ax, 0					; value bufor
-	mov ds, ax
-	mov es, ax
-	; setup stack
-	mov ss, ax
-	mov sp, 0x7C00				; stack grows downwards from where we are loaded in memory
-	
-	; some BIOSes might start us at 07C0:0000 instead of 0000:7C00
-	push es
-	push word .after
-	retf
+	bdb_oem:					db 'MSWIN4.1'			; 8 bytes
+	bdb_bytes_per_sector:		dw 512
+	bdb_sectors_per_cluster:	db 1
+	bdb_reserved_sectors:		dw 1
+	bdb_fat_count:				db 2
+	bdb_dir_entries_count:		dw 0E0h
+	bdb_total_sectors:			dw 2880					; 2880 * 512 = 1.44MB
+	bdb_media_descriptor_type:	db 0F0h					; F0 = 3.5" floppy disk
+	bdb_sectors_per_fat:		dw 9
+	bdb_sectors_per_track:		dw 18
+	bdb_heads:					dw 2
+	bdb_hidden_sectors:			dd 0
+	bdb_large_sector_count:		dd 0
+	; extended boot record
+	ebr_drive_number:			db 0					; 0x00 floppy, 0x80 hdd, kinda useless
+								db 0					; reserved
+	ebr_signature:				db 29h
+	ebr_volume_id:				db 69h, 69h, 69h, 69h	; serial number, value doesn't matter
+	ebr_volume_label:			db 'projectOS  '		; 11 bytes, padded with spaces
+	ebr_system_id:				db 'FAT12   '			; 8 bytes
 
-.after:
-	; read something from floppy disk
-	mov [ebr_drive_number], dl ; BIOS should set DL to drive number
+section .entry
+	global start
 
-	; show loading message
-	mov si, msg_loading
-	call puts
+	start:
+		; setup data segments
+		mov ax, 0					; value bufor
+		mov ds, ax
+		mov es, ax
+		; setup stack
+		mov ss, ax
+		mov sp, 0x7C00				; stack grows downwards from where we are loaded in memory
+		
+		; some BIOSes might start us at 07C0:0000 instead of 0000:7C00
+		push es
+		push word .after
+		retf
 
-	; check extensions present
-	mov ah, 0x41
-	mov bx, 0x55AA
-	stc
-	int 13h
-	
-	jc .no_disk_extensions
-	cmp bx, 0xAA55
-	jne .no_disk_extensions
+	.after:
+		; read something from floppy disk
+		mov [ebr_drive_number], dl ; BIOS should set DL to drive number
 
-	; extensions are present
-	mov byte [have_extensions], 1
-	jmp .after_disk_extensions_check
+		; show loading message
+		mov si, msg_loading
+		call puts
 
-.no_disk_extensions:
-	mov byte [have_extensions], 0
+		; check extensions present
+		mov ah, 0x41
+		mov bx, 0x55AA
+		stc
+		int 13h
+		
+		jc .no_disk_extensions
+		cmp bx, 0xAA55
+		jne .no_disk_extensions
 
-.after_disk_extensions_check:
-	; load stage2
-	mov si, stage2_location
+		; extensions are present
+		mov byte [have_extensions], 1
+		jmp .after_disk_extensions_check
 
-	mov ax, STAGE2_LOAD_SEGMENT			; set segment registers
-	mov es, ax
+	.no_disk_extensions:
+		mov byte [have_extensions], 0
 
-	mov bx, STAGE2_LOAD_OFFSET
+	.after_disk_extensions_check:
+		; load stage2
+		mov si, stage2_location
 
-.loop:
-	mov eax, [si]
-	add si, 4
-	mov cl, [si]
-	inc si
+		mov ax, STAGE2_LOAD_SEGMENT			; set segment registers
+		mov es, ax
 
-	cmp eax, 0
-	je .read_finish
+		mov bx, STAGE2_LOAD_OFFSET
 
-	call disk_read
+	.loop:
+		mov eax, [si]
+		add si, 4
+		mov cl, [si]
+		inc si
 
-	xor ch, ch
-	shl cx, 5
-    mov di, es
-    add di, cx
-    mov es, di
+		cmp eax, 0
+		je .read_finish
 
-	jmp .loop
+		call disk_read
 
-.read_finish:
-	
-	; jump to stage2
-	mov dl, [ebr_drive_number]			; boot device in dl
+		xor ch, ch
+		shl cx, 5
+		mov di, es
+		add di, cx
+		mov es, di
 
-	mov ax, STAGE2_LOAD_SEGMENT			; set segment registers
-	mov ds, ax
-	mov es, ax
+		jmp .loop
 
-	jmp STAGE2_LOAD_SEGMENT:STAGE2_LOAD_OFFSET
+	.read_finish:
+		
+		; jump to stage2
+		mov dl, [ebr_drive_number]			; boot device in dl
 
-	jmp wait_key_and_reboot				; should never happen
+		mov ax, STAGE2_LOAD_SEGMENT			; set segment registers
+		mov ds, ax
+		mov es, ax
 
-	cli									; disable interrupts, this way CPU can't get out of "halt" state
-	hlt
+		jmp STAGE2_LOAD_SEGMENT:STAGE2_LOAD_OFFSET
 
-;
-; Error handlers
-;
+		jmp wait_key_and_reboot				; should never happen
 
-floppy_error:
-	mov si, msg_read_failed
-	call puts
-	jmp wait_key_and_reboot
+		cli									; disable interrupts, this way CPU can't get out of "halt" state
+		hlt
 
-stage2_not_found_error:
-	mov si, msg_stage2_not_found
-	call puts
-	jmp wait_key_and_reboot
+section .text
 
-wait_key_and_reboot:
-	mov ah, 0
-	int 16h						; wait for keypress
-	jmp 0FFFFh:0				; jump to beginning of BIOS, should reboot
+	;
+	; Error handlers
+	;
 
-.halt:
-	cli							; disable interrupts, this way CPU can't get out of "halt" state
-	hlt
+	floppy_error:
+		mov si, msg_read_failed
+		call puts
+		jmp wait_key_and_reboot
+
+	stage2_not_found_error:
+		mov si, msg_stage2_not_found
+		call puts
+		jmp wait_key_and_reboot
+
+	wait_key_and_reboot:
+		mov ah, 0
+		int 16h						; wait for keypress
+		jmp 0FFFFh:0				; jump to beginning of BIOS, should reboot
+
+	.halt:
+		cli							; disable interrupts, this way CPU can't get out of "halt" state
+		hlt
 
 
-;
-; Prints a string to the screen
-; Params:
-;   - ds:si points to string
-;
-puts:
-	push si
-	push ax
-	push bx
+	;
+	; Prints a string to the screen
+	; Params:
+	;   - ds:si points to string
+	;
+	puts:
+		push si
+		push ax
+		push bx
 
-.loop:
-	lodsb				; loads next character in al
-	or al, al			; next char == null
-	jz .done
+	.loop:
+		lodsb				; loads next character in al
+		or al, al			; next char == null
+		jz .done
 
-	mov ah, 0x0E		; bios interrupt
-	mov bh, 0			; page number = 0
-	int 0x10
+		mov ah, 0x0E		; bios interrupt
+		mov bh, 0			; page number = 0
+		int 0x10
 
-	jmp .loop
+		jmp .loop
 
-.done:
-	pop bx
-	pop ax
+	.done:
+		pop bx
+		pop ax
+		pop si
+
+		ret
+
+	;
+	; Disk routines
+	;
+
+	;
+	; Converts an LBA address to a CHS address
+	; Parameters:
+	;	- ax: LBA address
+	; Returns:
+	;	- cx [bits 0-5]: sector number
+	;	- cx [bits 6-15]: cylinder
+	;	- dh: head
+	;
+	lba_to_chs:
+
+		push ax
+		push dx
+
+		xor dx, dx							; dx = 0
+		div word [bdb_sectors_per_track]	; ax = LBA / SectorsPerTrack
+											; dx = LBA % SectorsPerTrack
+
+		inc dx								; dx = (LBA % SectorsPerTrack + 1) = sector
+		mov cx, dx							; cx = sector
+
+		xor dx, dx							; dx = 0
+		div word [bdb_heads]				; ax = (LBA / SectorsPerTrack) / Heads = cylinder
+											; dx = (LBA / SectorsPerTrack) % Heads = head
+		mov dh, dl							; dh = head
+		mov ch, al							; ch = cylinder (lower 8 bits)
+		shl ah, 6
+		or cl, ah							; put upper 2 bits of cylinder in CL
+
+		pop ax
+		mov dl, al							; restore DL
+		pop ax
+
+		ret
+
+	;
+	; Reads sectors from a disk
+	; Parameters:
+	;	- eax: LBA address
+	;	- cl: number of sectors to read (up to 128)
+	;	- dl: drive number
+	;	- es:bx: memory address where to store read data
+	;
+	disk_read:
+
+		push eax
+		push bx
+		push cx
+		push dx
+		push si
+		push di
+
+		cmp byte [have_extensions], 1
+		jne .no_disk_extensions
+
+		; with extensions
+		mov [extensions_dap.lba], eax
+		mov [extensions_dap.segment], es
+		mov [extensions_dap.offset], bx
+		mov [extensions_dap.count], cl
+
+		mov ah, 0x42
+		mov si, extensions_dap
+		mov di, 3							; retry count
+		jmp .retry
+
+	.no_disk_extensions:
+		push cx
+		call lba_to_chs						; compute CHS
+		pop ax								; AL = number of sectors to read
+
+		mov ah, 02h
+		mov di, 3							; retry count
+
+	.retry:
+		pusha								; save all registers,it's unknown what bios modifies
+		stc									; set carry flag, some BIOS'es don't set it
+		int 13h								; carry flag cleared = success
+		jnc .done							; jump if carry not set
+
+		; read failed
+		popa
+		call disk_reset
+
+		dec di
+		test di, di
+		jnz .retry
+
+	.fail:
+		; all attempts are exhausted
+		jmp floppy_error
+
+	.done:
+		popa
+
+		pop di
 	pop si
+		pop dx
+		pop cx
+		pop bx
+		pop eax
 
-	ret
+		ret
 
-;
-; Disk routines
-;
+	;
+	; Resets disk controller
+	; Parameters:
+	;	dl: drive number
+	;
+	disk_reset:
+		pusha
+		mov ah, 0
+		stc
+		int 13h
+		jc floppy_error
+		popa
 
-;
-; Converts an LBA address to a CHS address
-; Parameters:
-;	- ax: LBA address
-; Returns:
-;	- cx [bits 0-5]: sector number
-;	- cx [bits 6-15]: cylinder
-;	- dh: head
-;
-lba_to_chs:
+		ret
 
-	push ax
-	push dx
+section .rodata
 
-	xor dx, dx							; dx = 0
-	div word [bdb_sectors_per_track]	; ax = LBA / SectorsPerTrack
-										; dx = LBA % SectorsPerTrack
+	msg_loading:			db 'Loading...', ENDL, 0
+	msg_read_failed:		db 'Read failed!', ENDL, 0
+	msg_stage2_not_found:	db 'file STAGE2.BIN not found!', ENDL, 0
+	file_stage2_bin:		db 'STAGE2  BIN'
 
-	inc dx								; dx = (LBA % SectorsPerTrack + 1) = sector
-	mov cx, dx							; cx = sector
+section .data
 
-	xor dx, dx							; dx = 0
-	div word [bdb_heads]				; ax = (LBA / SectorsPerTrack) / Heads = cylinder
-										; dx = (LBA / SectorsPerTrack) % Heads = head
-	mov dh, dl							; dh = head
-	mov ch, al							; ch = cylinder (lower 8 bits)
-	shl ah, 6
-	or cl, ah							; put upper 2 bits of cylinder in CL
+	have_extensions:		db 0
+	extensions_dap:
+		.size:					db 10h
+								db 0
+		.count:					dw 0
+		.offset:				dw 0
+		.segment:				dw 0
+		.lba:					dq 0
 
-	pop ax
-	mov dl, al							; restore DL
-	pop ax
+	STAGE2_LOAD_SEGMENT		equ 0x0
+	STAGE2_LOAD_OFFSET		equ 0x500
 
-	ret
+section .data
+	global stage2_location
+	stage2_location:		times 30 db 0
 
-;
-; Reads sectors from a disk
-; Parameters:
-;	- eax: LBA address
-;	- cl: number of sectors to read (up to 128)
-;	- dl: drive number
-;	- es:bx: memory address where to store read data
-;
-disk_read:
-
-	push eax
-	push bx
-	push cx
-	push dx
-	push si
-	push di
-
-	cmp byte [have_extensions], 1
-	jne .no_disk_extensions
-
-	; with extensions
-	mov [extensions_dap.lba], eax
-	mov [extensions_dap.segment], es
-	mov [extensions_dap.offset], bx
-	mov [extensions_dap.count], cl
-
-	mov ah, 0x42
-	mov si, extensions_dap
-	mov di, 3							; retry count
-	jmp .retry
-
-.no_disk_extensions:
-	push cx
-	call lba_to_chs						; compute CHS
-	pop ax								; AL = number of sectors to read
-
-	mov ah, 02h
-	mov di, 3							; retry count
-
-.retry:
-	pusha								; save all registers,it's unknown what bios modifies
-	stc									; set carry flag, some BIOS'es don't set it
-	int 13h								; carry flag cleared = success
-	jnc .done							; jump if carry not set
-
-	; read failed
-	popa
-	call disk_reset
-
-	dec di
-	test di, di
-	jnz .retry
-
-.fail:
-	; all attempts are exhausted
-	jmp floppy_error
-
-.done:
-	popa
-
-	pop di
-pop si
-	pop dx
-	pop cx
-	pop bx
-	pop eax
-
-	ret
-
-;
-; Resets disk controller
-; Parameters:
-;	dl: drive number
-;
-disk_reset:
-	pusha
-	mov ah, 0
-	stc
-	int 13h
-	jc floppy_error
-	popa
-
-	ret
-
-msg_loading:			db 'Loading...', ENDL, 0
-msg_read_failed:		db 'Read failed!', ENDL, 0
-msg_stage2_not_found:	db 'file STAGE2.BIN not found!', ENDL, 0
-file_stage2_bin:		db 'STAGE2  BIN'
-
-have_extensions:		db 0
-extensions_dap:
-	.size:					db 10h
-							db 0
-	.count:					dw 0
-	.offset:				dw 0
-	.segment:				dw 0
-	.lba:					dq 0
-
-STAGE2_LOAD_SEGMENT		equ 0x0
-STAGE2_LOAD_OFFSET		equ 0x500
-
-times 510-30-($-$$) db 0
-
-stage2_location:		times 30 db 0
-
-dw 0AA55h
-
-buffer:
+section .bss
+	buffer:					resb 512
