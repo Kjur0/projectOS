@@ -21,10 +21,10 @@ case "$1" in
 esac
 
 cat >.gdb_script.gdb <<EOF
-    b *0x7c00
-	set dissasembly-flavor intel
-    layout asm
-    target remote | qemu-system-i386 $QEMU_ARGS
+b *0x7c00
+set disassembly-flavor intel
+layout asm
+target remote | qemu-system-i386 $QEMU_ARGS
 EOF
 
 gdb -x .gdb_script.gdb

@@ -39,7 +39,7 @@ VARS.Add(
 )
 VARS.Add("toolchain", help="Path to toolchain directory.", default="toolchain")
 
-DEPS = {"binutils": "2.37", "gcc": "11.2.0"}
+DEPS = {"binutils": "2.41", "gcc": "13.2.0"}
 
 
 #
@@ -150,10 +150,8 @@ PhonyTargets(
     HOST_ENVIRONMENT,
     run=["./scripts/run.sh", HOST_ENVIRONMENT["imageType"], image[0].path],
     debug=["./scripts/debug.sh", HOST_ENVIRONMENT["imageType"], image[0].path],
-    bochs=["./scripts/bochs.sh", HOST_ENVIRONMENT["imageType"], image[0].path],
     toolchain=["./scripts/setup_toolchain.sh", HOST_ENVIRONMENT["toolchain"]],
 )
 
 Depends("run", image)
 Depends("debug", image)
-Depends("bochs", image)

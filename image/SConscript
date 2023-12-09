@@ -41,13 +41,13 @@ def create_filesystem(target: str, filesystem, reserved_sectors=0, offset=0):
         mkfs_fat(
             target,
             F=filesystem[3:],  # fat size
-            n="NBOS",  # label
+            n="projectOS",  # label
             R=reserved_sectors,  # reserved sectors
             offset=offset,
         )
     elif filesystem == "ext2":
         mkfs_ext2 = sh.Command("mkfs.ext2")
-        mkfs_ext2(target, L="NBOS", E=f"offset={offset * SECTOR_SIZE}")  # label
+        mkfs_ext2(target, L="projectOS", E=f"offset={offset * SECTOR_SIZE}")  # label
     else:
         raise ValueError("Unsupported filesystem " + filesystem)
 
