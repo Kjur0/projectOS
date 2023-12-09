@@ -4,7 +4,7 @@ dist
 toolchain
 
 __pycache__
-.sconsign.dblite
+.scons*
 *.err
 *_gen.*
 *tmp.*

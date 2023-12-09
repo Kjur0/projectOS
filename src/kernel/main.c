@@ -3,6 +3,7 @@
 #include "memory.h"
 #include <hal/hal.h>
 #include <arch/i686/irq.h>
+#include <debug.h>
 
 extern uint8_t __bss_start;
 extern uint8_t __end;
@@ -23,9 +24,8 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive) {
 	// call global constructors
 	_init();
 
-	clrscr();
-
-	printf("Kernel loaded!\n");
+	log_info("Main", "Kernel loaded!");
+	printf("projectOS v0.1\n");
 
 	//i686_IRQ_RegisterHandler(0, timer);
 
