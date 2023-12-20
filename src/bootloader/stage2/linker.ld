@@ -2,8 +2,7 @@ ENTRY(entry)
 OUTPUT_FORMAT("binary")
 phys = 0x00000500;
 
-SECTIONS
-{
+SECTIONS {
 	. = phys;
 
 	.entry				: { __entry_start = .;		*(.entry)	}

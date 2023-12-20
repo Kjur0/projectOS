@@ -9,7 +9,7 @@ static const char* const g_LogSeverityColors[] = {
 	[LVL_CRITICAL] = "\033[1;35m",
 };
 
-static const char* const g_ColorReset = "\033[0m]";
+static const char* const g_ColorReset = "\033[0m";
 
 void logf(const char* module, DebugLevel level, const char* fmt, ...) {
 	va_list args;

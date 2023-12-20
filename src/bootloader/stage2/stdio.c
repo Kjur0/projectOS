@@ -36,18 +36,6 @@ void setcursor(int x, int y) {
 	x86_outb(0x3D5, (uint8_t)((pos >> 8) & 0xFF));
 }
 
-void clrscr() {
-	for (int y = 0; y < SCREEN_HEIGHT; y++)
-		for (int x = 0; x < SCREEN_WIDTH; x++) {
-			putchr(x, y, '\0');
-			putcolor(x, y, DEFAULT_COLOR);
-		}
-
-	g_ScreenX = 0;
-	g_ScreenY = 0;
-	setcursor(g_ScreenX, g_ScreenY);
-}
-
 void scrollback(int lines) {
 	for (int y = lines; y < SCREEN_HEIGHT; y++)
 		for (int x = 0; x < SCREEN_WIDTH; x++) {
@@ -62,6 +50,18 @@ void scrollback(int lines) {
 		}
 
 	g_ScreenY -= lines;
+}
+
+void clrscr() {
+	for (int y = 0; y < SCREEN_HEIGHT; y++)
+		for (int x = 0; x < SCREEN_WIDTH; x++) {
+			putchr(x, y, '\0');
+			putcolor(x, y, DEFAULT_COLOR);
+		}
+
+	g_ScreenX = 0;
+	g_ScreenY = 0;
+	setcursor(g_ScreenX, g_ScreenY);
 }
 
 void putc(char c) {

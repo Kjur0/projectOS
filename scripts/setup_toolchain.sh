@@ -6,12 +6,10 @@ GCC_VERSION=13.2.0
 BINUTILS_URL="https://ftp.gnu.org/gnu/binutils/binutils-${BINUTILS_VERSION}.tar.xz"
 GCC_URL="https://ftp.gnu.org/gnu/gcc/gcc-${GCC_VERSION}/gcc-${GCC_VERSION}.tar.xz"
 
-# ---------------------------
-
-set -e
-
 TOOLCHAINS_DIR=
 OPERATION='build'
+
+set -e
 
 while test $# -gt 0; do
 	case "$1" in

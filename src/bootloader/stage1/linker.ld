@@ -2,8 +2,7 @@ ENTRY(start)
 OUTPUT_FORMAT("binary")
 phys = 0x7C00;					/* BIOS (or MBR) puts us at 0x7C00 */
 
-SECTIONS
-{
+SECTIONS {
 	. = phys;
 
 	/*	Some filesystems (like FAT) have a header that begins with a 3 byte

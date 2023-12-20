@@ -50,7 +50,13 @@ section .fsheaders
 	ebr_signature:						db 29h
 	ebr_volume_id:						db 69h, 69h, 69h, 69h	; serial number, value doesn't matter
 	ebr_volume_label:					db 'projectOS  '		; 11 bytes, padded with spaces
+	%if (FILESYSTEM = fat12)
 	ebr_system_id:						db 'FAT12   '			; 8 bytes
+	%elif (FILESYSTEM = fat16)
+	ebr_system_id:						db 'FAT16   '			; 8 bytes
+	%elif (FILESYSTEM = fat32)
+	ebr_system_id:						db 'FAT32   '			; 8 bytes
+	%endif
 
 %endif
 
@@ -326,7 +332,7 @@ section .text
 section .rodata
 
 	msg_read_failed:			db 'Failed to read from disk', ENDL, 0
-	msg_stage2_not_found:		db 'Stage2 not found', ENDL, 0
+	msg_stage2_not_found:		db 'Stage2 was not found', ENDL, 0
 	file_stage2_bin:			db 'STAGE2  BIN'
 
 section .data
