@@ -1,0 +1,19 @@
+name: Documentation update
+description: Request a documentation update
+labels: documentation
+
+body:
+	- type: textarea
+		attributes:
+			label: Request
+			description: A clear and concise request
+			placeholder: Describe your request
+		validations:
+			required: true
+	- type: input
+		attributes:
+			label: "Page/Section"
+			description: "Which page/section needs update?"
+      placeholder: "e.g. wiki#welcome-to-the-projectos-wiki, _Footer"
+    validations:
+      required: true 

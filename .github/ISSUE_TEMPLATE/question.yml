@@ -1,0 +1,23 @@
+name: Question
+description: Ask a question
+labels: question
+
+body:
+	- type: textarea
+		attributes:
+			label: Question
+			description: A clear and concise question
+			placeholder: Ask your question
+		validations:
+			required: true
+	- type: input
+		attributes:
+			label: "OS version"
+			description: "What OS version are you using?"
+			placeholder: "tag (e.g. kernel-prev2) or commit (e.g. a50f32e)"
+		validations:
+			required: true
+	- type: textarea
+		attributes:
+			label: "Additional context"
+			description: "Add any other context about the problem here."

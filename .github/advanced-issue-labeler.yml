@@ -1,0 +1,12 @@
+policy:
+	- template: ['report.yml', 'vulnerability.yml', 'feature.yml']
+		section:
+			- id: ['severity', 'priority']
+				block-list: ['Medium']
+				label:
+					- name: 'urgent'
+						keys: ['Urgent']
+					- name: 'high priority'
+						keys: ['High']
+					- name: 'low priority'
+						keys: ['Low']
