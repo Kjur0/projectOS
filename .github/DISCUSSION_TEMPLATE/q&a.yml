@@ -1,0 +1,9 @@
+labels: [question]
+body:
+  - type: textarea
+    attributes:
+      label: Question
+      description: A clear and concise question
+      placeholder: Ask your question
+    validations:
+      required: true

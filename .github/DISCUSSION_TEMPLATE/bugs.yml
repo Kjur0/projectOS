@@ -1,19 +1,5 @@
-name: Bug report
-description: File a bug report
-labels: bug
+labels: [bug]
 body:
-  - type: dropdown
-    id: severity
-    attributes:
-      label: Severity
-      description: How severe is this bug?
-      options:
-        - Low
-        - Medium
-        - High
-        - Urgent
-    validations:
-      required: true
   - type: textarea
     attributes:
       label: Description
