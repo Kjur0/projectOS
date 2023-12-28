@@ -1,0 +1,19 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: projectOS
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - email: abermkju1@gmail.com
+    family-names: Jurkowski
+    given-names: Krzysztof
+    orcid: 'https://orcid.org/0009-0008-3686-8078'
+repository-code: 'https://github.com/Kjur0/projectOS'
+abstract: A new alternative operating system
+keywords:
+  - os
+license: CC-BY-NC-SA-4.0

@@ -4,7 +4,9 @@ dist
 toolchain
 
 __pycache__
+
 .scons*
 *.err
-*_gen.*
+
+*gen.*
 *tmp.*
