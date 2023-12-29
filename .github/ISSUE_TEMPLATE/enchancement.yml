@@ -9,7 +9,7 @@ body:
       description: How important is this feature?
       options:
         - Low
-        - Medium
+        - Moderate
         - High
     validations:
       required: true

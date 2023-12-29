@@ -9,7 +9,7 @@ body:
       description: How severe is this bug?
       options:
         - Low
-        - Medium
+        - Moderate
         - High
         - Urgent
     validations:

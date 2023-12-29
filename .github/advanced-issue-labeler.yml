@@ -2,7 +2,7 @@ policy:
   - template: ['report.yml', 'vulnerability.yml', 'feature.yml']
     section:
       - id: ['severity', 'priority']
-        block-list: ['Medium']
+        block-list: ['Moderate']
         label:
           - name: 'urgent'
             keys: ['Urgent']
