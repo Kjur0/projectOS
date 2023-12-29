@@ -213,7 +213,7 @@ void fprint_buffer(fd_t file, const char* msg, const void* buffer, uint32_t coun
 	const uint8_t* u8Buffer = (const uint8_t*)buffer;
 
 	fputs(msg, file);
-	for (uint16_t i = 0; i < count; i++) {
+	for (uint32_t i = 0; i < count; i++) {
 		fputc(g_HexChars[u8Buffer[i] >> 4], file);
 		fputc(g_HexChars[u8Buffer[i] & 0xF], file);
 	}
