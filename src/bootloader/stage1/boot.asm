@@ -181,7 +181,7 @@ section .text
 	;
 	; Prints a string to the screen
 	; Params:
-	;   - ds:si points to string
+	;	- ds:si points to string
 	;
 	puts:
 		push si
@@ -212,7 +212,7 @@ section .text
 
 	;
 	; Converts an LBA address to a CHS address
-	; Parameters:
+	; Params:
 	;	- ax: LBA address
 	; Returns:
 	;	- cx [bits 0-5]: sector number
@@ -247,7 +247,7 @@ section .text
 
 	;
 	; Reads sectors from a disk
-	; Parameters:
+	; Params:
 	;	- eax: LBA address
 	;	- cl: number of sectors to read (up to 128)
 	;	- dl: drive number
@@ -306,7 +306,7 @@ section .text
 		popa
 
 		pop di
-	pop si
+		pop si
 		pop dx
 		pop cx
 		pop bx
@@ -316,7 +316,7 @@ section .text
 
 	;
 	; Resets disk controller
-	; Parameters:
+	; Params:
 	;	dl: drive number
 	;
 	disk_reset:

@@ -1,3 +1,22 @@
+/** FAT12/16/32 filesystem driver
+ * @author @Kjur0
+ * @version 0.1.1
+ * @see https://wiki.osdev.org/FAT
+ * @since 0.0.1
+ * FAT12/16/32 filesystem driver for stage 2 bootloader.
+ * @secreflist
+ * Dependencies:
+ * - stdint.h
+ * - @refitem mbr.h
+ * - @refitem stdio.h
+ * - @refitem memdefs.h
+ * - @refitem string.h
+ * - @refitem memory.h
+ * - @refitem ctype.h
+ * - stddef
+ * - @refitem minmax.h
+ * @endsecreflist
+*/
 #include "fat.h"
 #include "stdio.h"
 #include "memdefs.h"
@@ -7,99 +26,212 @@
 #include <stddef.h>
 #include "minmax.h"
 
-#define SECTOR_SIZE				512
-#define MAX_PATH_SIZE			256
-#define MAX_FILE_HANDLES		10
-#define ROOT_DIRECTORY_HANDLE	-1
-#define FAT_CACHE_SIZE			5
+/** FAT constants
+ * @since 0.0.1
+ * Constants for FAT filesystem
+ * @defgroup FAT constants
+ * @{
+*/
+#define SECTOR_SIZE				512	///< Sector size
+#define MAX_PATH_SIZE			256	///< Maximum path size
+#define MAX_FILE_HANDLES		10	///< Maximum file handles
+#define ROOT_DIRECTORY_HANDLE	-1	///< Root directory handle
+#define FAT_CACHE_SIZE			5	///< FAT cache size
+/// @}
 
+/** EBR for FAT12/16
+ * @author @Kjur0
+ * @version 0.1.1
+ * @see {@link https://wiki.osdev.org/FAT#Extended_Boot_Record EBR}
+ * @since 0.0.1
+ * Extended boot record for FAT12/16
+*/
 typedef struct {
-	// extended boot record
-	uint8_t DriveNumber;
-	uint8_t _Reserved;
-	uint8_t Signature;
-	uint32_t VolumeId;			// serial number, value doesn't matter
-	uint8_t VolumeLabel[11];	// 11 bytes, padded with spaces
-	uint8_t SystemId[8];
+	uint8_t DriveNumber;		///< Drive number
+								///< @note should be BIOS I13 DL output
+	uint8_t _Reserved;			///< Reserved byte
+								///< @warning do not modify
+	uint8_t Signature;			///< Signature
+								///< @attention must be 0x28 or 0x29
+	uint32_t VolumeId;			///< serial number
+								///< @note value doesn't matter
+	uint8_t VolumeLabel[11];	///< Volume label
+								///< @note 11 bytes padded with spaces
+	uint8_t SystemId[8];		///< FileSystem ID
+								///< @note 8 bytes padded with spaces
 } __attribute__((packed)) FAT_ExtendedBootRecord;
 
+/** EBR for FAT32
+ * @author @Kjur0
+ * @version 0.1.0
+ * @see {@link https://wiki.osdev.org/FAT#FAT_32_2 EBR}
+ * @since 0.0.1
+ * Extended boot record for FAT32
+*/
 typedef struct {
-	uint32_t SectorsPerFat;
-	uint16_t Flags;
-	uint16_t FatVersion;
-	uint32_t RootDirectoryCluster;
-	uint16_t FSInfoSector;
-	uint16_t BackupBootSector;
-	uint8_t _Reserved[12];
-	FAT_ExtendedBootRecord EBR;
+	uint32_t SectorsPerFat;			///< Sectors per FAT
+	uint16_t Flags;					///< Flags
+	uint16_t FatVersion;			///< FAT version
+	uint32_t RootDirectoryCluster;	///< Root directory cluster
+	uint16_t FSInfoSector;			///< FSInfo sector
+									///< @see {@link https://wiki.osdev.org/FAT#FSInfo_Structure_.28FAT32_only.29 FSInfo}
+	uint16_t BackupBootSector;		///< Backup boot sector
+	uint8_t _Reserved[12];			///< Reserved 12 bytes
+									///< @warning do not modify
+	FAT_ExtendedBootRecord EBR;		///< EBR
+									///< @note standard EBR from FAT12/16
+									///< @see FAT_ExtendedBootRecord
 } __attribute((packed)) FAT32_ExtendedBootRecord;
 
+/** Boot record
+ * @author @Kjur0
+ * @version 0.1.2
+ * @see {@link https://wiki.osdev.org/FAT#Boot_Record Boot Record}
+ * @since 0.0.1
+*/
 typedef struct {
-	uint8_t BootJumpInstruction[3];
-	uint8_t OemIdentifier[8];
-	uint16_t BytesPerSector;
-	uint8_t SectorsPerCluster;
-	uint16_t ReservedSectors;
-	uint8_t FatCount;
-	uint16_t DirEntryCount;
-	uint16_t TotalSectors;
-	uint8_t MediaDescriptorType;
-	uint16_t SectorsPerFat;
-	uint16_t SectorsPerTrack;
-	uint16_t Heads;
-	uint32_t HiddenSectors;
-	uint32_t LargeSectorCount;
-
+/** BPB
+ * @author @Kjur0
+ * @version 0.1.2
+ * @see {@link https://wiki.osdev.org/FAT#BPB_.28BIOS_Parameter_Block.29 BPB}
+ * @since 0.0.1
+ * BIOS Parameter Block
+ * @defgroup BPB
+ * @{
+*/
+	uint8_t BootJumpInstruction[3];	///< Boot jump instruction
+									///< @note 3 bytes
+									///< @attention must be 0xEB [address] 0x90 (JMP short [address] NOP)
+	uint8_t OemIdentifier[8];		///< OEM identifier
+									///< @note 8 bytes padded with spaces
+	uint16_t BytesPerSector;		///< Number of bytes per sector
+	uint8_t SectorsPerCluster;		///< Number of sectors per cluster
+	uint16_t ReservedSectors;		///< Number of reserved sectors
+	uint8_t FatCount;				///< Number of FATs
+	uint16_t DirEntryCount;			///< Number of directory entries
+	uint16_t TotalSectors;			///< Number of total sectors
+	uint8_t MediaDescriptorType;	///< Media descriptor type
+									///< @see {@link https://en.wikipedia.org/wiki/Design_of_the_FAT_file_system#BPB20_OFS_0Ah Media descriptor type}
+	uint16_t SectorsPerFat;			///< Number of sectors per FAT
+	uint16_t SectorsPerTrack;		///< Number of sectors per track
+	uint16_t Heads;					///< Number of heads
+	uint32_t HiddenSectors;			///< Number of hidden sectors
+	uint32_t LargeSectorCount;		///< Large sector count
+									///< @note used if TotalSectors is 0
+/// @}
+/** EBR union
+ * @note The actual memory size of the union will be determined by the larger of the two data types.
+ * @see FAT_ExtendedBootRecord
+ * @see FAT32_ExtendedBootRecord
+ * This union is used to conveniently store either a FAT_ExtendedBootRecord or a FAT32_ExtendedBootRecord.
+ * It allows accessing the same memory location using different data types, depending on the context.
+ */
 	union {
 		FAT_ExtendedBootRecord EBR1216;
 		FAT32_ExtendedBootRecord EBR32;
 	};
 } __attribute__((packed)) FAT_BootSector;
 
-
+/** File data structure.
+ * @author @Kjur0
+ * @version 0.1.1
+ * @since 0.0.1
+ * A structure for file data in FAT.
+*/
 typedef struct {
-	uint8_t Buffer[SECTOR_SIZE];
-	FAT_File Public;
-	bool Opened;
-	uint32_t FirstCluster;
-	uint32_t CurrentCluster;
-	uint32_t CurrentSectorInCluster;
+	uint8_t Buffer[SECTOR_SIZE]; 		///< Buffer
+	FAT_File Public;					///< Public file data
+										///< @see #FAT_File
+	bool Opened;						///< Opened
+	uint32_t FirstCluster;				///< Start of file (cluster)
+	uint32_t CurrentCluster;			///< Current position (cluster)
+	uint32_t CurrentSectorInCluster; 	///< Current position (sector)
 
 } FAT_FileData;
 
+/** FAT data
+ * @author @Kjur0
+ * @version 0.1.1
+ * @since 0.0.1
+ * File Allocation Table data
+*/
 typedef struct {
+	/** Boot sector
+	 * @author @Kjur0
+	 * @version 0.1.1
+	 * @see @FAT_BootSector
+	 * @since 0.0.1
+	 * Boot sector data
+	*/
 	union {
 		FAT_BootSector BootSector;
 		uint8_t BootSectorBytes[SECTOR_SIZE];
 	} BS;
 
-	FAT_FileData RootDirectory;
+	FAT_FileData RootDirectory;						///< Root directory
+													///< @see #FAT_FileData
 
-	FAT_FileData OpenedFiles[MAX_FILE_HANDLES];
+	FAT_FileData OpenedFiles[MAX_FILE_HANDLES];		///< Opened files
+													///< @see #FAT_FileData
 
-	uint8_t FatCache[FAT_CACHE_SIZE * SECTOR_SIZE];
-	uint32_t FatCachePosition;
+	uint8_t FatCache[FAT_CACHE_SIZE * SECTOR_SIZE];	///< FAT cache
+	uint32_t FatCachePosition;						///< FAT cache position
 
 } FAT_Data;
 
-static FAT_Data* g_Data;
-static uint32_t g_DataSectionLba;
-static uint8_t g_FatType;
-static uint32_t g_TotalSectors;
-static uint32_t g_SectorsPerFat;
+static FAT_Data* g_Data; 			///< current FAT data
+static uint32_t g_DataSectionLba;	///< data section LBA
+static uint8_t g_FatType;			///< FAT type
+static uint32_t g_TotalSectors;		///< total sectors
+static uint32_t g_SectorsPerFat;	///< sectors per FAT
 
+/** Convert cluster to LBA
+ * @author @Kjur0
+ * @version 0.1.1
+ * @param cluster		Cluster number
+ * @return uint32_t		Linear Block Address
+ * @since 0.0.1
+ * Convert cluster to Linear Block Address
+*/
 uint32_t FAT_ClusterToLba(uint32_t cluster) {
 	return g_DataSectionLba + (cluster - 2) * g_Data->BS.BootSector.SectorsPerCluster;
 }
 
+/** Read Boot Sector
+ * @author @Kjur0
+ * @version 0.1.1
+ * @param disk			Pointer to Partition to read from
+ * @return bool			True if the boot sector was successfully read, false otherwise
+ * @see Partition_ReadSectors()
+ * @since 0.0.1
+ * Read boot sector from disk
+*/
 bool FAT_ReadBootSector(Partition* disk) {
 	return Partition_ReadSectors(disk, 0, 1, g_Data->BS.BootSectorBytes);
 }
 
+/** Read File Allocation Table (FAT) from disk
+ * @author @Kjur0
+ * @version 0.1.1
+ * @param disk			Pointer to Partition to read from
+ * @param lbaIndex		Linear Block Address index
+ * @return bool			True if the FAT was successfully read, false otherwise
+ * @see Partition_ReadSectors()
+ * @since 0.0.1
+ * Read File Allocation Table (FAT) from disk
+*/
 bool FAT_ReadFat(Partition* disk, size_t lbaIndex) {
 	return Partition_ReadSectors(disk, g_Data->BS.BootSector.ReservedSectors + lbaIndex, FAT_CACHE_SIZE, g_Data->FatCache);
 }
 
+/** Detect FAT type from disk data
+ * @author @Kjur0
+ * @version 0.1.1
+ * @param disk			Pointer to Partition to check
+ * @since 0.0.1
+ * @note This function sets the global variable g_FatType.
+ * Detect FAT type from disk data and set g_FatType
+*/
 void FAT_Detect(Partition* disk) {
 	uint32_t dataClusters = (g_TotalSectors - g_DataSectionLba) / g_Data->BS.BootSector.SectorsPerCluster;
 	if (dataClusters < 0xFF5)
@@ -110,6 +242,15 @@ void FAT_Detect(Partition* disk) {
 		g_FatType = 32;
 }
 
+/** Initialize FAT filesystem driver
+ * @author @Kjur0
+ * @version 0.1.1
+ * @param disk			Pointer to Partition to read from
+ * @return bool			True if the filesystem was successfully initialized, false otherwise
+ * @since 0.0.1
+ * @headerfile fat.h
+ * Initialize FAT filesystem driver and setup neccecary variables
+*/
 bool FAT_Initialize(Partition* disk) {
 	g_Data = (FAT_Data*)MEMORY_FAT_ADDR;
 
@@ -126,7 +267,7 @@ bool FAT_Initialize(Partition* disk) {
 		g_TotalSectors = g_Data->BS.BootSector.LargeSectorCount;
 	}
 
-	bool isFat32 = false;
+	bool isFat32 = false;	///< Is FAT32
 	g_SectorsPerFat = g_Data->BS.BootSector.SectorsPerFat;
 	if (g_SectorsPerFat == 0) {			// fat32
 		isFat32 = true;
@@ -134,8 +275,8 @@ bool FAT_Initialize(Partition* disk) {
 	}
 
 	// open root directory file
-	uint32_t rootDirLba;
-	uint32_t rootDirSize;
+	uint32_t rootDirLba;	///< LBA of root directory
+	uint32_t rootDirSize;	///< Size of root directory
 	if (isFat32) {
 		g_DataSectionLba = g_Data->BS.BootSector.ReservedSectors + g_SectorsPerFat * g_Data->BS.BootSector.FatCount;
 		rootDirLba = FAT_ClusterToLba(g_Data->BS.BootSector.EBR32.RootDirectoryCluster);
@@ -171,6 +312,15 @@ bool FAT_Initialize(Partition* disk) {
 	return true;
 }
 
+/** Open directory entry as file handle
+ * @author @Kjur0
+ * @version 0.1.1
+ * @param disk				Pointer to Partition to read from
+ * @param entry				Pointer to FAT_DirectoryEntry to open
+ * @return FAT_File*		Pointer to opened file
+ * @since 0.0.1
+ * Open directory entry as file handle
+*/
 FAT_File* FAT_OpenEntry(Partition* disk, FAT_DirectoryEntry* entry) {
 	// find empty handle
 	int handle = -1;
@@ -186,7 +336,7 @@ FAT_File* FAT_OpenEntry(Partition* disk, FAT_DirectoryEntry* entry) {
 	}
 
 	// setup vars
-	FAT_FileData* fd = &g_Data->OpenedFiles[handle];
+	FAT_FileData* fd = &g_Data->OpenedFiles[handle];	///< File data
 	fd->Public.Handle = handle;
 	fd->Public.IsDirectory = (entry->Attributes & FAT_ATTRIBUTE_DIRECTORY) != 0;
 	fd->Public.Position = 0;
@@ -207,9 +357,18 @@ FAT_File* FAT_OpenEntry(Partition* disk, FAT_DirectoryEntry* entry) {
 	return &fd->Public;
 }
 
+/** Get next cluster in chain from FAT table
+ * @author @Kjur0
+ * @version 0.1.1
+ * @param disk				Pointer to Partition to read from
+ * @param currentCluster	Current cluster
+ * @return uint32_t		Next cluster in chain
+ * @since 0.0.1
+ * Get next cluster in chain from FAT table
+*/
 uint32_t FAT_NextCluster(Partition* disk, uint32_t currentCluster) {
 	// Determine the byte offset of the entry we need to read
-	uint32_t fatIndex;
+	uint32_t fatIndex;		///< FAT index
 	if (g_FatType == 12) {
 		fatIndex = currentCluster * 3 / 2;
 	} else if (g_FatType == 16) {
@@ -219,16 +378,15 @@ uint32_t FAT_NextCluster(Partition* disk, uint32_t currentCluster) {
 	}
 
 	// Make sure cache has the right number
-	uint32_t fatIndexSector = fatIndex / SECTOR_SIZE;
-	if (fatIndexSector < g_Data->FatCachePosition
-		|| fatIndexSector >= g_Data->FatCachePosition + FAT_CACHE_SIZE) {
+	uint32_t fatIndexSector = fatIndex / SECTOR_SIZE;	///< FAT index sector size
+	if (fatIndexSector < g_Data->FatCachePosition || fatIndexSector >= g_Data->FatCachePosition + FAT_CACHE_SIZE) {
 		FAT_ReadFat(disk, fatIndexSector);
 		g_Data->FatCachePosition = fatIndexSector;
 	}
 
 	fatIndex -= (g_Data->FatCachePosition * SECTOR_SIZE);
 
-	uint32_t nextCluster;
+	uint32_t nextCluster;	///< Next cluster
 	if (g_FatType == 12) {
 		if (currentCluster % 2 == 0)
 			nextCluster = (*(uint16_t*)(g_Data->FatCache + fatIndex)) & 0x0FFF;
@@ -250,15 +408,25 @@ uint32_t FAT_NextCluster(Partition* disk, uint32_t currentCluster) {
 	return nextCluster;
 }
 
+/** Find file in directory by name
+ * @author @Kjur0
+ * @version 0.1.1
+ * @param disk			Pointer to Partition to read from
+ * @param file			Pointer to FAT_File to read from
+ * @param name			Name of the file to find
+ * @param entryOut		Pointer to FAT_DirectoryEntry to write to
+ * @return bool			True if the file was found, false otherwise
+ * Find file in directory by name and return directory entry data if found
+*/
 bool FAT_FindFile(Partition* disk, FAT_File* file, const char* name, FAT_DirectoryEntry* entryOut) {
-	char fatName[12];
+	char fatName[12];	///< file name in FAT
 	FAT_DirectoryEntry entry;
 
 	// convert from name to fat name
 	memset(fatName, ' ', sizeof(fatName));
 	fatName[11] = '\0';
 
-	const char* ext = strchr(name, '.');
+	const char* ext = strchr(name, '.'); ///< file extension
 	if (ext == NULL)
 		ext = name + 11;
 
@@ -280,25 +448,35 @@ bool FAT_FindFile(Partition* disk, FAT_File* file, const char* name, FAT_Directo
 	return false;
 }
 
+/** Open file by path
+ * @author @Kjur0
+ * @version 0.1.1
+ * @param disk			Pointer to Partition to read from
+ * @param path			Path to file to open
+ * @return FAT_File*	Pointer to opened file
+ * @since 0.0.1
+ * @headerfile fat.h
+ * Open file by path in FAT filesystem driver
+*/
 FAT_File* FAT_Open(Partition* disk, const char* path) {
-	char name[MAX_PATH_SIZE];
+	char name[MAX_PATH_SIZE];	///< file path
 
 	// ignore leading slash
 	if (path[0] == '/')
 		path++;
 
-	FAT_File* current = &g_Data->RootDirectory.Public;
+	FAT_File* current = &g_Data->RootDirectory.Public;	///< current file
 
 	while (*path) {
 		// extract next file name from path
-		bool isLast = false;
-		const char* delim = strchr(path, '/');
+		bool isLast = false;	///< is last name in path (/name/name/last name)
+		const char* delim = strchr(path, '/');	///< delimiter
 		if (delim != NULL) {
 			memcpy(name, path, delim - path);
 			name[delim - path] = '\0';
 			path = delim + 1;
 		} else {
-			unsigned len = strlen(path);
+			unsigned len = strlen(path);	///< length of path
 			memcpy(name, path, len);
 			name[len + 1] = '\0';
 			path += len;
@@ -306,7 +484,7 @@ FAT_File* FAT_Open(Partition* disk, const char* path) {
 		}
 
 		// find directory entry in current directory
-		FAT_DirectoryEntry entry;
+		FAT_DirectoryEntry entry;	///< directory entry
 		if (FAT_FindFile(disk, current, name, &entry)) {
 			FAT_Close(current);
 
@@ -329,13 +507,25 @@ FAT_File* FAT_Open(Partition* disk, const char* path) {
 	return current;
 }
 
+/** Read file data
+ * @author @Kjur0
+ * @version 0.1.1
+ * @param disk			Pointer to Partition to read from
+ * @param file			Pointer to FAT_File to read from
+ * @param byteCount		Number of bytes to read
+ * @param dataOut		Pointer to data output
+ * @return uint32_t		Number of bytes read
+ * @since 0.0.1
+ * @headerfile fat.h
+ * Read file data from file handle
+*/
 uint32_t FAT_Read(Partition* disk, FAT_File* file, uint32_t byteCount, void* dataOut) {
 	// get file data
-	FAT_FileData* fd = (file->Handle == ROOT_DIRECTORY_HANDLE)
+	FAT_FileData* fd = (file->Handle == ROOT_DIRECTORY_HANDLE)	///< file data
 		? &g_Data->RootDirectory
 		: &g_Data->OpenedFiles[file->Handle];
 
-	uint8_t* u8DataOut = (uint8_t*)dataOut;
+	uint8_t* u8DataOut = (uint8_t*)dataOut;	///< standarized data output
 
 	// don't read past the end of the file
 	if (!fd->Public.IsDirectory || (fd->Public.IsDirectory && fd->Public.Size != 0))
@@ -351,7 +541,7 @@ uint32_t FAT_Read(Partition* disk, FAT_File* file, uint32_t byteCount, void* dat
 		byteCount -= take;
 
 		// printf("leftInBuffer=%lu take=%lu\r\n", leftInBuffer, take);
-		// See if we need to read more data
+		// See if there's need to read more data
 		if (leftInBuffer == take) {
 			// Special handling for root directory
 			if (fd->Public.Handle == ROOT_DIRECTORY_HANDLE) {
@@ -387,10 +577,30 @@ uint32_t FAT_Read(Partition* disk, FAT_File* file, uint32_t byteCount, void* dat
 	return u8DataOut - (uint8_t*)dataOut;
 }
 
+/** Read directory entry
+ * @author @Kjur0
+ * @version 0.1.1
+ * @param disk			Pointer to Partition to read from
+ * @param file			Pointer to FAT_File to read from
+ * @param dirEntry		Pointer to FAT_DirectoryEntry to write to
+ * @return bool			True if the directory entry was successfully read, false otherwise
+ * @see FAT_Read()
+ * @since 0.0.1
+ * @headerfile fat.h
+ * Read directory entry from file handle
+*/
 bool FAT_ReadEntry(Partition* disk, FAT_File* file, FAT_DirectoryEntry* dirEntry) {
 	return FAT_Read(disk, file, sizeof(FAT_DirectoryEntry), dirEntry) == sizeof(FAT_DirectoryEntry);
 }
 
+/** Close file handle
+ * @author @Kjur0
+ * @version 0.1.1
+ * @param file			Pointer to FAT_File to close
+ * @since 0.0.1
+ * @headerfile fat.h
+ * Close file handle by file pointer
+*/
 void FAT_Close(FAT_File* file) {
 	if (file->Handle == ROOT_DIRECTORY_HANDLE) {
 		file->Position = 0;
